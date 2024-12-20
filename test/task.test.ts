@@ -1,4 +1,3 @@
-import { console } from "inspector";
 import { Input, Output } from "../src";
 
 test("Run logic", async () => {
