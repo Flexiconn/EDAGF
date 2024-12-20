@@ -1,5 +1,5 @@
 {
-  "name": "dagtest",
+  "name": "easy-file-dag",
   "version": "1.0.0",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -8,14 +8,13 @@
   ],
   "scripts": {
     "test": "jest",
-    "start": "tsc && node dist/index.js"
+    "build": "tsc"
   },
   "author": "Simon Cox",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "description": "Directed Aclycic Graph for managing complex file dependency trees.",
   "dependencies": {
     "glob": "^11.0.0",
-    "tsup": "^8.3.5",
     "typescript": "^5.7.2"
   },
   "devDependencies": {
