@@ -14,7 +14,6 @@
   "license": "UNLICENSED",
   "description": "Directed Aclycic Graph for managing complex file dependency trees.",
   "dependencies": {
-    "dagtest": "file:dagtest-1.0.0.tgz",
     "glob": "^11.0.0",
     "tsup": "^8.3.5",
     "typescript": "^5.7.2"
