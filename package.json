@@ -1,0 +1,31 @@
+{
+  "name": "dagtest",
+  "version": "1.0.0",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "./dist"
+  ],
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "tsc && node dist/index.js"
+  },
+  "author": "Simon Cox",
+  "license": "UNLICENSED",
+  "description": "Directed Aclycic Graph for managing complex file dependency trees.",
+  "dependencies": {
+    "dagtest": "file:dagtest-1.0.0.tgz",
+    "glob": "^11.0.0",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.17.1",
+    "@types/jest": "^29.5.14",
+    "@types/mock-fs": "^4.13.4",
+    "@types/node": "^22.10.2",
+    "jest": "^29.7.0",
+    "mock-fs": "^5.4.1",
+    "ts-jest": "^29.2.5"
+  }
+}
