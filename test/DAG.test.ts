@@ -1,20 +1,22 @@
 import { DAG, Input, Output, Task } from "../src/index";
 import { promises as fs } from "fs";
+import * as Utils from '../src/Utils'; // Adjust the import path as necessary
+import { Settings } from "../src/DAG";
 
-test('Contains self cycle', () => {
+test('Contains self cycle', async () => {
     const dag = new DAG();
 
     const task = {
         id: "ID-1",
         inputs: ["*.js"],
         outputs: ["*.js"],
-        run: async (inputs: Input[], outputs : Output[]) => {
+        run: async () => {
             return;
         }
     } as Task<any>;
 
     try {
-        dag.Add(task);
+        await dag.Add(task);
         throw new Error("Test did not detect cycle");
     } catch (e : any) {
         expect(e.message).toBe(`Task depends on itself.`);
@@ -22,7 +24,7 @@ test('Contains self cycle', () => {
 }); 
 
 
-test('Contains direct cycle', () => {
+test('Contains direct cycle', async () => {
     const dag = new DAG();
 
     const task1 = {
@@ -44,15 +46,15 @@ test('Contains direct cycle', () => {
     } as Task<any>;
 
     try {
-        dag.Add(task1);
-        dag.Add(task2);
+        await dag.Add(task1);
+        await dag.Add(task2);
         throw new Error("Test did not detect cycle");
     } catch (e : any) {
         expect(e.message).toBe(`Adding task with id ${task2.id} creates a cycle in the DAG.`);
     }
 }); 
 
-test('Contains indirect cycle', () => {
+test('Contains indirect cycle', async () => {
     const dag = new DAG();
 
     const task1 = {
@@ -83,9 +85,9 @@ test('Contains indirect cycle', () => {
     } as Task<any>;
 
     try {
-        dag.Add(task1);
-        dag.Add(task2);
-        dag.Add(task3);
+        await dag.Add(task1);
+        await dag.Add(task2);
+        await dag.Add(task3);
         throw new Error("Test did not detect cycle");
     } catch (e : any) {
         expect(e.message).toBe(`Adding task with id ${task3.id} creates a cycle in the DAG.`);
@@ -119,8 +121,8 @@ test('Topological sort sequential', async () => {
         }
     }]
 
-    dag.Add(tasks)
-    const order = dag.GetTopologicalSortedList();
+    await dag.Add(tasks)
+    const order = dag.GetTopologicallySortedList();
     expect(order[0].id).toBe(tasks[0].id);
     expect(order[1].id).toBe(tasks[1].id);
 
@@ -169,8 +171,8 @@ test('Topological sort diamond shape', async () => {
 
 ]
 
-    dag.Add(tasks)
-    const order = dag.GetTopologicalSortedList();
+    await dag.Add(tasks)
+    const order = dag.GetTopologicallySortedList();
     // the order should be 1, 2, 3, 4
     expect(order[0].id).toBe(tasks[1].id);
     expect(order[1].id).toBe(tasks[2].id);
@@ -232,8 +234,8 @@ test('Topological sort uneven diamond shape', async () => {
 
 ]
 
-    dag.Add(tasks)
-    const order = dag.GetTopologicalSortedList();
+    await dag.Add(tasks)
+    const order = dag.GetTopologicallySortedList();
     // The order should be 1, 2, 3, 5, 4
     expect(order[0].id).toBe(tasks[1].id);
     expect(order[1].id).toBe(tasks[2].id);
@@ -310,8 +312,8 @@ test('Topological sort tree shape', async () => {
     }
 ]
 
-    dag.Add(tasks)
-    const order = dag.GetTopologicalSortedList();
+    await dag.Add(tasks)
+    const order = dag.GetTopologicallySortedList();
     // The order should be 1, 2, 3, 5, 4
     expect(order[0].id).toBe(tasks[0].id);
     expect(order[1].id).toBe(tasks[1].id);
