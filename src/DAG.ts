@@ -5,15 +5,25 @@ import { Execute } from "./DefaultExecutor";
 import { GetFilesByGlob } from "./Utils";
 import path from "path";
 
+
+/**
+ * Interface representing the settings for the application.
+ */
 export interface Settings {
   cwd?: string;
-  ignore?: string[];
+}
+
+interface GlobSave {
+  inputs : string[];
+  outputs : string[];
 }
 
 export class DAG<T extends any[]> {
   private tasks: Map<string, Task<T>> = new Map();
   private toInsertValues : T;
   private settings : Settings;
+  private globs : Map<string, GlobSave> = new Map();
+
   constructor(settings? : Settings,additionalValues?: T) {
     this.settings = this.CreateSettings(settings);
     if(additionalValues){
@@ -24,12 +34,24 @@ export class DAG<T extends any[]> {
   }
   
 
+  /**
+   * Executes the tasks in the directed acyclic graph (DAG) based on their topological order.
+   * 
+   * @param options - Optional parameters to control the execution.
+   * @param options.force - If true, forces a full run of all tasks regardless of input/output timestamps.
+   * 
+   * The method determines the execution order of tasks using a topological sort. For each task, it checks the
+   * modification times of the input and output files. If any input file is newer than any output file, or if
+   * the `force` option is set to true, the task is executed.
+   * 
+   * @returns A promise that resolves when all tasks have been processed.
+   */
   async Run(options?: {force?: boolean}) {
     const forceFullRun = options?.force ?? false;
-    const executionOrder = this.GetTopologicalSortedList();
+    const executionOrder = this.GetTopologicallySortedList();
 
     for(const task of executionOrder){
-      const inputFiles = await GetFilesByGlob(task.inputs, this.settings);
+      const inputFiles = this.globs.get(task.id)?.inputs ?? [];
       const inputTimes = await Promise.all(inputFiles.map(async input => {
         try {
           const stats = await fs.stat(path.join(this.settings.cwd!, input));
@@ -39,7 +61,7 @@ export class DAG<T extends any[]> {
         }
       }));
 
-      const outputFiles = await GetFilesByGlob(task.outputs, this.settings);
+      const outputFiles = this.globs.get(task.id)?.outputs ?? [];
       const outputTimes = await Promise.all(outputFiles.map(async output => {
         try {
           const stats = await fs.stat(path.join(this.settings.cwd!, output));
@@ -60,12 +82,20 @@ export class DAG<T extends any[]> {
   }
 
 
-  Add(tasks : Task<T> | Task<T>[]) {
+  /**
+   * Adds one or more tasks to the Directed Acyclic Graph (DAG).
+   * 
+   * @param tasks - A single task or an array of tasks to be added to the DAG.
+   * 
+   * @throws {Error} If a task depends on itself.
+   * @throws {Error} If adding a task creates a cycle in the DAG.
+   */
+  async Add(tasks : Task<T> | Task<T>[]) {
     if(!Array.isArray(tasks)){
       tasks = [tasks];
     }
 
-    for(const task of tasks){
+    for(const task of tasks.values()){
       for (const output of task.outputs) {
         if(minimatch.match(task.inputs, output).length > 0){
           throw new Error(`Task depends on itself.`);
@@ -79,11 +109,20 @@ export class DAG<T extends any[]> {
         this.tasks.delete(task.id);
         throw new Error(`Adding task with id ${task.id} creates a cycle in the DAG.`);
       }
+
+      const inputFiles = await GetFilesByGlob(task.inputs, this.settings);
+      const outputFiles = await GetFilesByGlob(task.outputs, this.settings);
+      this.globs.set(task.id, {inputs: inputFiles, outputs: outputFiles});
     }
     
   }
 
-  GetTopologicalSortedList(){
+  /**
+   * Retrieves a list of tasks sorted in topological order.
+   *
+   * @returns {Array<Task>} An array of tasks sorted topologically.
+   */
+  GetTopologicallySortedList(){
     const tasks = Array.from(this.tasks.values())
     
     return this.topologicalSort(tasks)
@@ -143,22 +182,8 @@ export class DAG<T extends any[]> {
   }
 
 
-  getTasksByGlob(uri : string) : Task<T>[] {
-    const tasks : Task<T>[] = [];
-    for(const task of this.tasks.values()){
-        for (const input of task.inputs){
-            const match = minimatch(uri, input);
-            if(match){
-                tasks.push(task);
-                break;
-            }
-        }
-    }
-    return tasks;
-  }
 
-
-  hasCycle(): boolean {
+  private hasCycle(): boolean {
     const visited = new Set<string>();
     const recStack = new Set<string>();
 
@@ -194,21 +219,50 @@ export class DAG<T extends any[]> {
     return false;
   }
 
-  CreateSettings(overrides : Partial<Settings> | null = {}): Settings {
+  private CreateSettings(overrides : Partial<Settings> | null = {}): Settings {
     const defaultSettings = {
       cwd: process.cwd(),
-      ignore: [],
     };
     const userSettings = overrides ?? {};
 
     return {
       cwd: userSettings.hasOwnProperty('cwd') ? userSettings.cwd : defaultSettings.cwd,
-      ignore: userSettings.hasOwnProperty('ignore') ? userSettings.ignore : defaultSettings.ignore,
     };
   }
 
   private GlobMatches(pattern: string, value: string): boolean {
     const regex = new RegExp("^" + pattern.replace(/\*/g, ".*").replace(/\?/g, ".") + "$");
     return regex.test(value);
+  }
+
+  /**
+   * Refreshes all files tracked for the tasks by rerunning the glob expressions.
+   * 
+   * @returns {Promise<void>} A promise that resolves when all glob patterns have been refreshed.
+   */
+  async RefreshGlobs(){
+    const promises = [];
+    for(const task in this.tasks){
+      promises.push(this.RefreshGlobsForTask(task));
+    }
+    await Promise.all(promises);
+  }
+
+  /**
+   * Refreshes all files tracked using the glob expressions of for one specific tasks.
+   * 
+   * @param taskId - The unique identifier of the task to refresh globs for.
+   * @throws {Error} If the task with the specified ID is not found.
+   * @returns A promise that resolves when the globs have been refreshed.
+   */
+  async RefreshGlobsForTask(taskId : string){
+    const task = this.tasks.get(taskId);
+    if(!task){
+      throw new Error(`Task with id ${taskId} not found.`);
+    }
+
+    const inputFiles = await GetFilesByGlob(task.inputs, this.settings);
+    const outputFiles = await GetFilesByGlob(task.outputs, this.settings);
+    this.globs.set(task.id, {inputs: inputFiles, outputs: outputFiles});
   }
 }
