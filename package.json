@@ -7,6 +7,12 @@
     "type": "git",
     "url": "https://github.com/Flexiconn/EDAGF"
   },
+  "keywords": [
+    "DAG",
+    "file",
+    "dependency",
+    "graph"
+  ],
   "files": [
     "./dist"
   ],
