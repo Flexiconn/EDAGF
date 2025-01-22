@@ -1,12 +1,18 @@
 {
   "name": "easy-file-dag",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "repository": {
     "type": "git",
     "url": "https://github.com/Flexiconn/EDAGF"
   },
+  "keywords": [
+    "DAG",
+    "file",
+    "dependency",
+    "graph"
+  ],
   "files": [
     "./dist"
   ],
